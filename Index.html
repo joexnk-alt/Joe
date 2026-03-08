@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Company Media Vault</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fb;
+            color: #333;
+            line-height: 1.6;
+            padding-bottom: 2rem;
+        }
+
+        /* Header */
+        header {
+            background: #1e3c72;  /* dark blue */
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Upload button area */
+        .upload-section {
+            display: flex;
+            justify-content: center;
+            margin: 1.5rem 0;
+        }
+
+        .upload-btn {
+            background: #2e7d32;  /* green */
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            min-height: 48px; /* easy to tap */
+        }
+
+        .upload-btn:hover {
+            background: #1b5e20;
+        }
+
+        /* Gallery grid */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .gallery-item {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .gallery-item:active {
+            transform: scale(0.98);
+        }
+
+        .gallery-item img, .gallery-item video {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery-item .info {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            background: white;
+            border-top: 1px solid #eee;
+        }
+
+        .info .filename {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .info .date {
+            color: #777;
+            font-size: 0.75rem;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #aaa;
+            font-size: 1.2rem;
+        }
+
+        /* Hidden file input */
+        #fileInput {
+            display: none;
+        }
+
+        /* Simple modal for upload progress (optional) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 300px;
+            text-align: center;
+        }
+
+        .modal-content p {
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #1e3c72;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>📁 Company Media Vault</h1>
+        <p>Secure storage for photos & videos</p>
+    </header>
+
+    <!-- Upload button -->
+    <div class="upload-section">
+        <button class="upload-btn" id="uploadBtn">
+            <span>⬆️</span> Upload Media
+        </button>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="fileInput" accept="image/*,video/*" multiple>
+
+    <!-- Gallery grid (will be populated by JavaScript) -->
+    <div class="gallery" id="gallery">
+        <!-- Example placeholder items (will be replaced by dynamic content) -->
+        <div class="gallery-item">
+            <img src="https://via.placeholder.com/150/1e3c72/ffffff?text=Photo" alt="placeholder">
+            <div class="info">
+                <div class="filename">sample.jpg</div>
+                <div class="date">Just now</div>
+            </div>
+        </div>
+        <div class="gallery-item">
+            <video src="#"></video>
+            <div class="info">
+                <div class="filename">video.mp4</div>
+                <div class="date">Yesterday</div>
+            </div>
+        </div>
+        <!-- More placeholders... -->
+    </div>
+
+    <!-- Empty state (hidden by default) -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+        📷 No media yet. Tap "Upload Media" to add photos and videos.
+    </div>
+
+    <!-- Upload progress modal -->
+    <div class="modal" id="progressModal">
+        <div class="modal-content">
+            <p>Uploading...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get DOM elements
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
+        const gallery = document.getElementById('gallery');
+        const emptyState = document.getElementById('emptyState');
+        const modal = document.getElementById('progressModal');
+        const progressFill = document.getElementById('progressFill');
+
+        // Initially, check if gallery has items (placeholder count)
+        function updateEmptyState() {
+            if (gallery.children.length === 0) {
+                emptyState.style.display = 'block';
+                gallery.style.display = 'none';
+            } else {
+                emptyState.style.display = 'none';
+                gallery.style.display = 'grid';
+            }
+        }
+
+        // For demo, we keep placeholders, so empty state is not shown.
+        // If you remove all children, it will show.
+        // updateEmptyState();
+
+        // Handle upload button click
+        uploadBtn.addEventListener('click', () => {
+            fileInput.click();  // open file picker
+        });
+
+        // When files are selected
+        fileInput.addEventListener('change', (event) => {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+
+            // Show modal (simulate upload progress)
+            modal.style.display = 'flex';
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                progressFill.style.width = progress + '%';
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        progressFill.style.width = '0%';
+                        // For now, just add placeholders for each file
+                        files.forEach(file => {
+                            addGalleryItem(file);
+                        });
+                        // Clear input so same file can be uploaded again
+                        fileInput.value = '';
+                    }, 500);
+                }
+            }, 200);
+        });
+
+        // Function to add a new gallery item (temporary – just a placeholder)
+        function addGalleryItem(file) {
+            const item = document.createElement('div');
+            item.className = 'gallery-item';
+
+            let mediaElement;
+            if (file.type.startsWith('image/')) {
+                mediaElement = document.createElement('img');
+                // For real upload, we'd show a thumbnail. Here we use a placeholder.
+                mediaElement.src = URL.createObjectURL(file);
+            } else if (file.type.startsWith('video/')) {
+                mediaElement = document.createElement('video');
+                mediaElement.src = URL.createObjectURL(file);
+                mediaElement.controls = false; // or true if you want controls
+            } else {
+                return; // skip unsupported
+            }
+
+            // Create info div
+            const info = document.createElement('div');
+            info.className = 'info';
+            info.innerHTML = `
+                <div class="filename">${file.name}</div>
+                <div class="date">Just now</div>
+            `;
+
+            item.appendChild(mediaElement);
+            item.appendChild(info);
+
+            // Add click to preview (could open a modal later)
+            item.addEventListener('click', () => {
+                alert(`Preview: ${file.name}`);
+            });
+
+            gallery.appendChild(item);
+
+            // After adding, update empty state (though we never hide gallery)
+            // If you want to remove placeholders, clear gallery first.
+        }
+
+        // Optional: simulate removing placeholders to see empty state
+        // setTimeout(() => { gallery.innerHTML = ''; updateEmptyState(); }, 5000);
+    </script>
+</body>
+  </html>
